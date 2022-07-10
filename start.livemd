@@ -31,23 +31,23 @@ defmodule Maze do
   def get_cells(%__MODULE__{cells: cells}), do: Map.keys(cells)
 
   def get_neighbor(maze, {row, column}, :north),
-    do: at(maze, {row - 1, column})
+    do: maybe_cell_in_maze(maze, {row - 1, column})
 
   def get_neighbor(maze, {row, column}, :east),
-    do: at(maze, {row, column + 1})
+    do: maybe_cell_in_maze(maze, {row, column + 1})
 
   def get_neighbor(maze, {row, column}, :south),
-    do: at(maze, {row + 1, column})
+    do: maybe_cell_in_maze(maze, {row + 1, column})
 
   def get_neighbor(maze, {row, column}, :west),
-    do: at(maze, {row, column - 1})
+    do: maybe_cell_in_maze(maze, {row, column - 1})
 
-  defp at(%__MODULE__{rows: rows, columns: columns}, {row, column})
+  defp maybe_cell_in_maze(%__MODULE__{rows: rows, columns: columns}, {row, column} = cell)
        when row >= 0 and row < rows and column >= 0 and column < columns do
-    {row, column}
+    cell
   end
 
-  defp at(_, _), do: nil
+  defp maybe_cell_in_maze(_, _), do: nil
 
   def linked?(%__MODULE__{cells: cells}, cell_one, cell_two) do
     get_in(cells, [cell_one, cell_two])
@@ -64,10 +64,6 @@ defmodule Maze do
     end
   end
 end
-```
-
-```elixir
-Maze.new(5, 5) |> Maze.link({0, 0}, {1, 0})
 ```
 
 ```elixir
