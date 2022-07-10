@@ -1,0 +1,144 @@
+# Amazing Elixir
+
+## Section
+
+```elixir
+defmodule Maze do
+  defstruct [:rows, :columns, :cells]
+
+  @all_directions [:north, :east, :south, :west]
+
+  def new(rows, columns) do
+    maze = %__MODULE__{rows: rows, columns: columns}
+
+    cells =
+      for row <- 0..(rows - 1), column <- 0..(columns - 1), into: %{} do
+        cell = {row, column}
+
+        neighbors =
+          for direction <- @all_directions,
+              neighbor = get_neighbor(maze, cell, direction),
+              into: %{} do
+            {neighbor, false}
+          end
+
+        {cell, neighbors}
+      end
+
+    %__MODULE__{maze | cells: cells}
+  end
+
+  def get_cells(%__MODULE__{cells: cells}), do: Map.keys(cells)
+
+  def get_neighbor(maze, {row, column}, :north),
+    do: at(maze, {row - 1, column})
+
+  def get_neighbor(maze, {row, column}, :east),
+    do: at(maze, {row, column + 1})
+
+  def get_neighbor(maze, {row, column}, :south),
+    do: at(maze, {row + 1, column})
+
+  def get_neighbor(maze, {row, column}, :west),
+    do: at(maze, {row, column - 1})
+
+  defp at(%__MODULE__{rows: rows, columns: columns}, {row, column})
+       when row >= 0 and row < rows and column >= 0 and column < columns do
+    {row, column}
+  end
+
+  defp at(_, _), do: nil
+
+  def linked?(%__MODULE__{cells: cells}, cell_one, cell_two) do
+    get_in(cells, [cell_one, cell_two])
+  end
+
+  def link(%__MODULE__{} = maze, cell_one, cell_two) do
+    case get_in(maze.cells, [cell_one, cell_two]) do
+      nil ->
+        raise "can not link #{inspect(cell_one)} and #{inspect(cell_two)}"
+
+      _ ->
+        maze = put_in(maze.cells[cell_one][cell_two], true)
+        put_in(maze.cells[cell_two][cell_one], true)
+    end
+  end
+end
+```
+
+```elixir
+Maze.new(5, 5) |> Maze.link({0, 0}, {1, 0})
+```
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule MazeTest do
+  use ExUnit.Case, async: true
+
+  @all_directions [:north, :east, :south, :west]
+
+  describe "initialize" do
+    test "not linked to any neighbor cell yet" do
+      maze = Maze.new(5, 5)
+
+      for cell <- Maze.get_cells(maze),
+          direction <- @all_directions,
+          neighbor = Maze.get_neighbor(maze, cell, direction) do
+        refute Maze.linked?(maze, cell, neighbor)
+      end
+    end
+
+    test "creates cells depending on the number of rows and columns" do
+      assert Maze.new(2, 5) |> Maze.get_cells() |> length() == 2 * 5
+      assert Maze.new(10, 8) |> Maze.get_cells() |> length() == 10 * 8
+    end
+  end
+
+  test "get_neighbor" do
+    maze = Maze.new(3, 3)
+
+    refute Maze.get_neighbor(maze, {0, 0}, :north)
+    assert Maze.get_neighbor(maze, {0, 0}, :east) == {0, 1}
+    assert Maze.get_neighbor(maze, {0, 0}, :south) == {1, 0}
+    refute Maze.get_neighbor(maze, {0, 0}, :west)
+
+    assert Maze.get_neighbor(maze, {1, 0}, :north) == {0, 0}
+    assert Maze.get_neighbor(maze, {1, 0}, :east) == {1, 1}
+    assert Maze.get_neighbor(maze, {1, 0}, :south) == {2, 0}
+    refute Maze.get_neighbor(maze, {1, 0}, :west)
+
+    assert Maze.get_neighbor(maze, {2, 0}, :north) == {1, 0}
+    assert Maze.get_neighbor(maze, {2, 0}, :east) == {2, 1}
+    refute Maze.get_neighbor(maze, {2, 0}, :south)
+    refute Maze.get_neighbor(maze, {2, 0}, :west)
+
+    assert Maze.get_neighbor(maze, {1, 1}, :north) == {0, 1}
+    assert Maze.get_neighbor(maze, {1, 1}, :east) == {1, 2}
+    assert Maze.get_neighbor(maze, {1, 1}, :south) == {2, 1}
+    assert Maze.get_neighbor(maze, {1, 1}, :west) == {1, 0}
+
+    assert Maze.get_neighbor(maze, {2, 2}, :north) == {1, 2}
+    refute Maze.get_neighbor(maze, {2, 2}, :east)
+    refute Maze.get_neighbor(maze, {2, 2}, :south)
+    assert Maze.get_neighbor(maze, {2, 2}, :west) == {2, 1}
+  end
+
+  test "can link neighboring cells" do
+    maze = Maze.new(2, 2) |> Maze.link({0, 0}, {0, 1})
+
+    assert Maze.linked?(maze, {0, 0}, {0, 1})
+    assert Maze.linked?(maze, {0, 1}, {0, 0})
+    refute Maze.linked?(maze, {0, 0}, {1, 0})
+    refute Maze.linked?(maze, {1, 0}, {0, 0})
+  end
+
+  test "can not link distant cells" do
+    assert_raise RuntimeError, "can not link {0, 0} and {1, 1}", fn ->
+      Maze.new(2, 2) |> Maze.link({0, 0}, {1, 1})
+    end
+  end
+end
+
+ExUnit.run()
+```
