@@ -1,6 +1,12 @@
 # Amazing Elixir
 
-## Section
+```elixir
+Mix.install([
+  {:kino, "~> 0.6.2"}
+])
+```
+
+## The Maze Module
 
 ```elixir
 defmodule Maze do
@@ -30,8 +36,9 @@ defmodule Maze do
 
   def get_cells(%__MODULE__{cells: cells}), do: Map.keys(cells)
 
-  def get_neighbor(maze, {row, column}, :north),
-    do: maybe_cell_in_maze(maze, {row - 1, column})
+  def get_neighbor(maze, {row, column}, :north) do
+    maybe_cell_in_maze(maze, {row - 1, column})
+  end
 
   def get_neighbor(maze, {row, column}, :east),
     do: maybe_cell_in_maze(maze, {row, column + 1})
@@ -49,6 +56,12 @@ defmodule Maze do
 
   defp maybe_cell_in_maze(_, _), do: nil
 
+  def get_neighbors(maze, cell, directions),
+    do:
+      directions
+      |> Enum.map(fn direction -> get_neighbor(maze, cell, direction) end)
+      |> Enum.reject(&is_nil/1)
+
   def linked?(%__MODULE__{cells: cells}, cell_one, cell_two) do
     get_in(cells, [cell_one, cell_two])
   end
@@ -62,6 +75,48 @@ defmodule Maze do
         maze = put_in(maze.cells[cell_one][cell_two], true)
         put_in(maze.cells[cell_two][cell_one], true)
     end
+  end
+
+  def to_svg(%__MODULE__{rows: rows, columns: columns} = maze, cell_size \\ 5) do
+    content =
+      for {row, column} = cell <- Maze.get_cells(maze) do
+        x1 = column * cell_size
+        y1 = row * cell_size
+        x2 = (column + 1) * cell_size
+        y2 = (row + 1) * cell_size
+
+        walls_enabled = %{
+          north: Maze.get_neighbor(maze, cell, :north) == nil,
+          east: !Maze.linked?(maze, cell, Maze.get_neighbor(maze, cell, :east)),
+          south: !Maze.linked?(maze, cell, Maze.get_neighbor(maze, cell, :south)),
+          west: Maze.get_neighbor(maze, cell, :west) == nil
+        }
+
+        wall_svgs = %{
+          north: svg_line(x1, y1, x2, y1),
+          east: svg_line(x2, y1, x2, y2),
+          south: svg_line(x1, y2, x2, y2),
+          west: svg_line(x1, y1, x1, y2)
+        }
+
+        walls_enabled
+        |> Enum.filter(fn {_, enabled} -> enabled end)
+        |> Enum.map(fn {direction, _} -> wall_svgs[direction] end)
+        |> Enum.join()
+      end
+
+    """
+    <svg viewBox="0 0 #{columns * cell_size} #{rows * cell_size}"
+         xmlns="http://www.w3.org/2000/svg">
+      #{content}
+    </svg>
+    """
+  end
+
+  defp svg_line(x1, y1, x2, y2) do
+    """
+    <line x1="#{x1}" y1="#{y1}" x2="#{x2}" y2="#{y2}" style="stroke:black;stroke-width:0.1" />
+    """
   end
 end
 ```
@@ -120,6 +175,26 @@ defmodule MazeTest do
     assert Maze.get_neighbor(maze, {2, 2}, :west) == {2, 1}
   end
 
+  test "get_neighbors" do
+    maze = Maze.new(3, 3)
+
+    assert Maze.get_neighbors(maze, {0, 0}, [:north, :east]) == [{0, 1}]
+
+    assert Maze.get_neighbors(maze, {1, 1}, [:north, :east, :south, :west]) == [
+             {0, 1},
+             {1, 2},
+             {2, 1},
+             {1, 0}
+           ]
+
+    assert Maze.get_neighbors(maze, {1, 1}, [:west, :east, :north, :south]) == [
+             {1, 0},
+             {1, 2},
+             {0, 1},
+             {2, 1}
+           ]
+  end
+
   test "can link neighboring cells" do
     maze = Maze.new(2, 2) |> Maze.link({0, 0}, {0, 1})
 
@@ -137,4 +212,24 @@ defmodule MazeTest do
 end
 
 ExUnit.run()
+```
+
+## Binary tree algorithm
+
+```elixir
+maze = Maze.new(5, 5)
+
+maze
+|> Maze.get_cells()
+|> Enum.reduce(maze, fn cell, maze ->
+  case Maze.get_neighbors(maze, cell, [:north, :east]) do
+    [] ->
+      maze
+
+    neighbors ->
+      Maze.link(maze, cell, Enum.random(neighbors))
+  end
+end)
+|> Maze.to_svg()
+|> Kino.Image.new(:svg)
 ```
