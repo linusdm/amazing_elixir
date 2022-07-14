@@ -34,7 +34,15 @@ defmodule Maze do
     %__MODULE__{maze | cells: cells}
   end
 
-  def get_cells(%__MODULE__{cells: cells}), do: Map.keys(cells)
+  def get_cells(%__MODULE__{cells: cells} = maze) do
+    Map.keys(cells) |> Enum.sort(&compare_cells(maze, &1, &2))
+  end
+
+  # TODO: make the comparison not depend on the maze
+  defp compare_cells(maze, cell1, cell2),
+    do: get_cell_ordinal(maze, cell1) <= get_cell_ordinal(maze, cell2)
+
+  defp get_cell_ordinal(%__MODULE__{columns: columns}, {row, column}), do: columns * row + column
 
   def get_neighbor(maze, {row, column}, :north) do
     maybe_cell_in_maze(maze, {row - 1, column})
@@ -120,6 +128,8 @@ defmodule Maze do
   end
 end
 ```
+
+## Testing the Maze module
 
 ```elixir
 ExUnit.start(autorun: false)
@@ -214,22 +224,92 @@ end
 ExUnit.run()
 ```
 
-## Binary tree algorithm
+<!-- livebook:{"branch_parent_index":0} -->
+
+## Binary Tree algorithm
 
 ```elixir
-maze = Maze.new(5, 5)
+defmodule BinaryTree do
+  def build(maze) do
+    maze
+    |> Maze.get_cells()
+    |> Enum.reduce(maze, fn cell, maze ->
+      case Maze.get_neighbors(maze, cell, [:north, :east]) do
+        [] ->
+          maze
 
-maze
-|> Maze.get_cells()
-|> Enum.reduce(maze, fn cell, maze ->
-  case Maze.get_neighbors(maze, cell, [:north, :east]) do
-    [] ->
-      maze
-
-    neighbors ->
-      Maze.link(maze, cell, Enum.random(neighbors))
+        neighbors ->
+          Maze.link(maze, cell, Enum.random(neighbors))
+      end
+    end)
   end
-end)
+end
+
+Maze.new(50, 50)
+|> BinaryTree.build()
+|> Maze.to_svg()
+|> Kino.Image.new(:svg)
+```
+
+<!-- livebook:{"branch_parent_index":0} -->
+
+## Sidewinder algorithm
+
+```elixir
+defmodule Sidewinder do
+  def build(maze) do
+    rows =
+      maze
+      |> Maze.get_cells()
+      |> Enum.group_by(fn {row, _} -> row end)
+      |> Enum.map(fn {_, cells} -> cells end)
+
+    for [first | _] = items <- rows, reduce: maze do
+      maze ->
+        if Maze.get_neighbor(maze, first, :north) do
+          groups = partition_row(items)
+          maze = groups |> Enum.reduce(maze, &merge/2)
+          groups |> Enum.reduce(maze, &link_north/2)
+        else
+          merge(items, maze)
+        end
+    end
+  end
+
+  defp merge(cells, maze) when is_list(cells) do
+    cells
+    |> Enum.drop(-1)
+    |> Enum.reduce(maze, fn cell, maze ->
+      east = Maze.get_neighbor(maze, cell, :east)
+      Maze.link(maze, cell, east)
+    end)
+  end
+
+  defp link_north(cells, maze) when is_list(cells) do
+    from = Enum.random(cells)
+    to = Maze.get_neighbor(maze, from, :north)
+    Maze.link(maze, from, to)
+  end
+
+  defp partition_row(cells) do
+    cells
+    |> Enum.reverse()
+    |> Enum.reduce([], fn
+      item, [] ->
+        [[item]]
+
+      item, [active | closed] ->
+        if Enum.random([true, false]) do
+          [[item] | [active | closed]]
+        else
+          [[item | active] | closed]
+        end
+    end)
+  end
+end
+
+Maze.new(50, 50)
+|> Sidewinder.build()
 |> Maze.to_svg()
 |> Kino.Image.new(:svg)
 ```
