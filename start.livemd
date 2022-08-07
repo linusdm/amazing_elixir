@@ -44,9 +44,8 @@ defmodule Maze do
 
   defp get_cell_ordinal(%__MODULE__{columns: columns}, {row, column}), do: columns * row + column
 
-  def get_neighbor(maze, {row, column}, :north) do
-    maybe_cell_in_maze(maze, {row - 1, column})
-  end
+  def get_neighbor(maze, {row, column}, :north),
+    do: maybe_cell_in_maze(maze, {row - 1, column})
 
   def get_neighbor(maze, {row, column}, :east),
     do: maybe_cell_in_maze(maze, {row, column + 1})
@@ -312,4 +311,37 @@ Maze.new(50, 50)
 |> Sidewinder.build()
 |> Maze.to_svg()
 |> Kino.Image.new(:svg)
+```
+
+## Dijkstra's algorithm
+
+```elixir
+defmodule Distances do
+  def distances(maze) do
+    for cell <- Maze.get_cells(maze), into: %{} do
+      # TODO: implement Dijkstra's algorithm
+      {cell, 0}
+    end
+  end
+end
+```
+
+```elixir
+ExUnit.start(autorun: false)
+
+defmodule DistancesTest do
+  use ExUnit.Case, async: true
+
+  test "distances" do
+    maze =
+      Maze.new(2, 2)
+      |> Maze.link({0, 0}, {0, 1})
+      |> Maze.link({0, 1}, {1, 1})
+      |> Maze.link({1, 1}, {1, 0})
+
+    assert %{{0, 0} => 0, {0, 1} => 1, {1, 1} => 2, {1, 0} => 3} = Distances.distances(maze)
+  end
+end
+
+ExUnit.run()
 ```
