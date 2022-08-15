@@ -89,7 +89,11 @@ defmodule Maze do
     end
   end
 
-  def to_svg(%__MODULE__{rows: rows, columns: columns} = maze, cell_size \\ 5) do
+  def to_svg(
+        %__MODULE__{rows: rows, columns: columns} = maze,
+        cell_contents \\ %{},
+        cell_size \\ 5
+      ) do
     content =
       for {row, column} = cell <- Maze.get_cells(maze) do
         x1 = column * cell_size
@@ -97,12 +101,15 @@ defmodule Maze do
         x2 = (column + 1) * cell_size
         y2 = (row + 1) * cell_size
 
-        walls_enabled = %{
-          north: Maze.get_neighbor(maze, cell, :north) == nil,
-          east: !Maze.linked?(maze, cell, Maze.get_neighbor(maze, cell, :east)),
-          south: !Maze.linked?(maze, cell, Maze.get_neighbor(maze, cell, :south)),
-          west: Maze.get_neighbor(maze, cell, :west) == nil
-        }
+        enabled_walls =
+          %{
+            north: Maze.get_neighbor(maze, cell, :north) == nil,
+            east: !Maze.linked?(maze, cell, Maze.get_neighbor(maze, cell, :east)),
+            south: !Maze.linked?(maze, cell, Maze.get_neighbor(maze, cell, :south)),
+            west: Maze.get_neighbor(maze, cell, :west) == nil
+          }
+          |> Enum.filter(fn {_, enabled} -> enabled end)
+          |> Enum.map(fn {direction, _} -> direction end)
 
         wall_svgs = %{
           north: svg_line(x1, y1, x2, y1),
@@ -111,10 +118,9 @@ defmodule Maze do
           west: svg_line(x1, y1, x1, y2)
         }
 
-        walls_enabled
-        |> Enum.filter(fn {_, enabled} -> enabled end)
-        |> Enum.map(fn {direction, _} -> wall_svgs[direction] end)
-        |> Enum.join()
+        for direction <- enabled_walls, into: "" do
+          wall_svgs[direction]
+        end
       end
 
     """
