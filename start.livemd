@@ -404,3 +404,7 @@ maze
 |> Maze.to_svg(distances)
 |> Kino.Image.new(:svg)
 ```
+
+### TODO
+
+Prune shortest path from distances (given a maze, a map of distances and a goal cell). See page 42.
