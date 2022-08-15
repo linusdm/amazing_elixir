@@ -118,9 +118,16 @@ defmodule Maze do
           west: svg_line(x1, y1, x1, y2)
         }
 
-        for direction <- enabled_walls, into: "" do
-          wall_svgs[direction]
-        end
+        wall =
+          for direction <- enabled_walls, into: "" do
+            wall_svgs[direction]
+          end
+
+        if content = cell_contents[cell] do
+          svg_text(x1, y1, cell_size, Integer.to_string(content, 36))
+        else
+          ""
+        end <> wall
       end
 
     """
@@ -134,6 +141,12 @@ defmodule Maze do
   defp svg_line(x1, y1, x2, y2) do
     """
     <line x1="#{x1}" y1="#{y1}" x2="#{x2}" y2="#{y2}" style="stroke:black;stroke-width:0.1" />
+    """
+  end
+
+  defp svg_text(x, y, cell_size, text) do
+    """
+    <text x="#{x + 1}" y="#{y + cell_size - 1}" font-size="#{cell_size - 1}pt" fill="gray">#{text}</text>
     """
   end
 end
@@ -381,4 +394,13 @@ defmodule DistancesTest do
 end
 
 ExUnit.run()
+```
+
+```elixir
+maze = Maze.new(10, 10) |> Sidewinder.build()
+distances = Distances.distances(maze)
+
+maze
+|> Maze.to_svg(distances)
+|> Kino.Image.new(:svg)
 ```
