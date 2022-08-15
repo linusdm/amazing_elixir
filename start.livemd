@@ -73,6 +73,11 @@ defmodule Maze do
     get_in(cells, [cell_one, cell_two])
   end
 
+  def get_linked_cells(maze, cell) do
+    get_neighbors(maze, cell, @all_directions)
+    |> Enum.filter(fn neighbor -> linked?(maze, neighbor, cell) end)
+  end
+
   def link(%__MODULE__{} = maze, cell_one, cell_two) do
     case get_in(maze.cells, [cell_one, cell_two]) do
       nil ->
@@ -213,6 +218,15 @@ defmodule MazeTest do
     refute Maze.linked?(maze, {1, 0}, {0, 0})
   end
 
+  test "can get linked cells" do
+    maze = Maze.new(2, 2) |> Maze.link({0, 0}, {0, 1})
+
+    assert [{0, 1}] = Maze.get_linked_cells(maze, {0, 0})
+    assert [{0, 0}] = Maze.get_linked_cells(maze, {0, 1})
+    assert [] = Maze.get_linked_cells(maze, {1, 0})
+    assert [] = Maze.get_linked_cells(maze, {1, 1})
+  end
+
   test "can not link distant cells" do
     assert_raise RuntimeError, "can not link {0, 0} and {1, 1}", fn ->
       Maze.new(2, 2) |> Maze.link({0, 0}, {1, 1})
@@ -317,11 +331,28 @@ Maze.new(50, 50)
 
 ```elixir
 defmodule Distances do
-  def distances(maze) do
-    for cell <- Maze.get_cells(maze), into: %{} do
-      # TODO: implement Dijkstra's algorithm
-      {cell, 0}
-    end
+  def distances(maze, start_cell \\ {0, 0}) do
+    distances_with(maze, [start_cell], %{start_cell => 0})
+  end
+
+  defp distances_with(_maze, _frontier_cells = [], distances) do
+    distances
+  end
+
+  defp distances_with(maze, frontier_cells, distances) do
+    {new_distances, new_frontier_cells} =
+      for frontier_cell <- frontier_cells, reduce: {distances, []} do
+        {distances, new_frontier_cells} ->
+          for linked_cell <- Maze.get_linked_cells(maze, frontier_cell),
+              distances[linked_cell] == nil,
+              reduce: {distances, new_frontier_cells} do
+            {distances, new_frontier_cells} ->
+              new_distances = Map.put(distances, linked_cell, distances[frontier_cell] + 1)
+              {new_distances, [linked_cell | new_frontier_cells]}
+          end
+      end
+
+    distances_with(maze, new_frontier_cells, new_distances)
   end
 end
 ```
