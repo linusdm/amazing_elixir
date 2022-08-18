@@ -4,6 +4,8 @@
 Mix.install([
   {:kino, "~> 0.6.2"}
 ])
+
+ExUnit.start(autorun: false)
 ```
 
 ## The Maze Module
@@ -152,11 +154,11 @@ defmodule Maze do
 end
 ```
 
+<!-- livebook:{"branch_parent_index":0} -->
+
 ## Testing the Maze module
 
 ```elixir
-ExUnit.start(autorun: false)
-
 defmodule MazeTest do
   use ExUnit.Case, async: true
 
@@ -256,8 +258,6 @@ end
 ExUnit.run()
 ```
 
-<!-- livebook:{"branch_parent_index":0} -->
-
 ## Binary Tree algorithm
 
 ```elixir
@@ -282,8 +282,6 @@ Maze.new(50, 50)
 |> Maze.to_svg()
 |> Kino.Image.new(:svg)
 ```
-
-<!-- livebook:{"branch_parent_index":0} -->
 
 ## Sidewinder algorithm
 
@@ -377,8 +375,6 @@ end
 ```
 
 ```elixir
-ExUnit.start(autorun: false)
-
 defmodule DistancesTest do
   use ExUnit.Case, async: true
 
@@ -389,7 +385,7 @@ defmodule DistancesTest do
       |> Maze.link({0, 1}, {1, 1})
       |> Maze.link({1, 1}, {1, 0})
 
-    assert %{{0, 0} => 0, {0, 1} => 1, {1, 1} => 2, {1, 0} => 3} = Distances.distances(maze)
+    assert %{{0, 0} => 0, {0, 1} => 1, {1, 1} => 2, {1, 0} => 3} == Distances.distances(maze)
   end
 end
 
@@ -408,3 +404,33 @@ maze
 ### TODO
 
 Prune shortest path from distances (given a maze, a map of distances and a goal cell). See page 42.
+
+```elixir
+defmodule ShortestPath do
+  def to(%Maze{} = maze, _from, _to) do
+    # TODO implement correctly
+    Distances.distances(maze)
+  end
+end
+```
+
+```elixir
+defmodule ShortestPathTest do
+  use ExUnit.Case, async: true
+
+  test "shortest path" do
+    maze =
+      Maze.new(2, 3)
+      |> Maze.link({0, 0}, {0, 1})
+      |> Maze.link({0, 1}, {0, 2})
+      |> Maze.link({1, 0}, {1, 1})
+      |> Maze.link({1, 1}, {1, 2})
+      |> Maze.link({0, 0}, {1, 0})
+      |> Maze.link({0, 2}, {1, 2})
+
+    assert %{{0, 0} => 0, {1, 0} => 1, {1, 1} => 2} == ShortestPath.to(maze, {0, 0}, {1, 1})
+  end
+end
+
+ExUnit.run()
+```
