@@ -346,6 +346,8 @@ Maze.new(50, 50)
 
 ## Dijkstra's algorithm
 
+### Step 1: build the `distances` map
+
 ```elixir
 defmodule Distances do
   def distances(maze, start_cell \\ {0, 0}) do
@@ -401,15 +403,25 @@ maze
 |> Kino.Image.new(:svg)
 ```
 
-### TODO
-
-Prune shortest path from distances (given a maze, a map of distances and a goal cell). See page 42.
+### Step 2: back-track the shortest path given the distance of each cell
 
 ```elixir
 defmodule ShortestPath do
-  def to(%Maze{} = maze, _from, _to) do
-    # TODO implement correctly
-    Distances.distances(maze)
+  def build(%Maze{} = maze, from, to) do
+    build_path(maze, Distances.distances(maze, from), %{}, from, to)
+  end
+
+  defp build_path(_maze, _distances, path, from, from), do: Map.put(path, from, 0)
+
+  defp build_path(maze, distances, path, from, to) do
+    new_to =
+      {_, _} =
+      Maze.get_linked_cells(maze, to)
+      |> Enum.find(fn cell -> distances[cell] < distances[to] end)
+
+    new_path = Map.put(path, to, distances[to])
+
+    build_path(maze, distances, new_path, from, new_to)
   end
 end
 ```
@@ -428,9 +440,20 @@ defmodule ShortestPathTest do
       |> Maze.link({0, 0}, {1, 0})
       |> Maze.link({0, 2}, {1, 2})
 
-    assert %{{0, 0} => 0, {1, 0} => 1, {1, 1} => 2} == ShortestPath.to(maze, {0, 0}, {1, 1})
+    assert %{{0, 0} => 0, {1, 0} => 1, {1, 1} => 2} == ShortestPath.build(maze, {0, 0}, {1, 1})
   end
 end
 
 ExUnit.run()
+```
+
+Now draw the solution
+
+```elixir
+maze = Maze.new(10, 10) |> Sidewinder.build()
+shortest_path = ShortestPath.build(maze, {0, 0}, {9, 0})
+
+maze
+|> Maze.to_svg(shortest_path)
+|> Kino.Image.new(:svg)
 ```
